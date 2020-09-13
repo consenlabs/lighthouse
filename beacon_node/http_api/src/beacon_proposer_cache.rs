@@ -4,6 +4,8 @@ use fork_choice::ProtoBlock;
 use state_processing::per_slot_processing;
 use types::{Epoch, EthSpec, Hash256, PublicKeyBytes};
 
+const EPOCHS_TO_SKIP: u64 = 2;
+
 pub struct BeaconProposerCache {
     epoch: Epoch,
     epoch_boundary_root: Hash256,
@@ -13,8 +15,17 @@ pub struct BeaconProposerCache {
 impl BeaconProposerCache {
     pub fn new<T: BeaconChainTypes>(chain: &BeaconChain<T>) -> Result<Self, BeaconChainError> {
         let (head_root, head_block) = Self::current_head_block(chain)?;
-        let current_epoch = chain.epoch()?;
-        Self::for_head_block(chain, current_epoch, head_root, head_block)
+
+        let epoch = {
+            let epoch_now = chain.epoch()?;
+            if epoch_now > state.current_epoch() + EPOCHS_TO_SKIP {
+                state.current_epoch()
+            } else {
+                epoch_now
+            }
+        };
+
+        Self::for_head_block(chain, epoch, head_root, head_block)
     }
 
     fn for_head_block<T: BeaconChainTypes>(
