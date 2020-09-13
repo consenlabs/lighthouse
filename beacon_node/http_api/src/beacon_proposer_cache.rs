@@ -18,8 +18,9 @@ impl BeaconProposerCache {
 
         let epoch = {
             let epoch_now = chain.epoch()?;
-            if epoch_now > state.current_epoch() + EPOCHS_TO_SKIP {
-                state.current_epoch()
+            let head_epoch = head_block.slot.epoch(T::EthSpec::slots_per_epoch());
+            if epoch_now > head_epoch + EPOCHS_TO_SKIP {
+                head_epoch
             } else {
                 epoch_now
             }
