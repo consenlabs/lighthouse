@@ -17,7 +17,9 @@ impl BeaconProposerCache {
         let (head_root, head_block) = Self::current_head_block(chain)?;
 
         let epoch = {
-            let epoch_now = chain.epoch()?;
+            let epoch_now = chain
+                .epoch()
+                .unwrap_or_else(|_| chain.spec.genesis_slot.epoch(T::EthSpec::slots_per_epoch()));
             let head_epoch = head_block.slot.epoch(T::EthSpec::slots_per_epoch());
             if epoch_now > head_epoch + EPOCHS_TO_SKIP {
                 head_epoch
@@ -85,7 +87,10 @@ impl BeaconProposerCache {
         chain: &BeaconChain<T>,
         epoch: Epoch,
     ) -> Result<Vec<ProposerData>, warp::Rejection> {
-        let current_epoch = chain.epoch().map_err(crate::reject::beacon_chain_error)?;
+        let current_epoch = chain
+            .epoch()
+            .unwrap_or_else(|_| chain.spec.genesis_slot.epoch(T::EthSpec::slots_per_epoch()));
+
         if current_epoch != epoch {
             return Err(crate::reject::custom_bad_request(format!(
                 "requested epoch is {} but only current epoch {} is allowed",

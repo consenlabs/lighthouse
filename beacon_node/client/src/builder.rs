@@ -60,7 +60,6 @@ pub struct ClientBuilder<T: BeaconChainTypes> {
     event_handler: Option<T::EventHandler>,
     network_globals: Option<Arc<NetworkGlobals<T::EthSpec>>>,
     network_send: Option<UnboundedSender<NetworkMessage<T::EthSpec>>>,
-    http_listen_addr: Option<SocketAddr>,
     http_api_config: http_api::Config,
     websocket_listen_addr: Option<SocketAddr>,
     eth_spec_instance: T::EthSpec,
@@ -103,7 +102,6 @@ where
             event_handler: None,
             network_globals: None,
             network_send: None,
-            http_listen_addr: None,
             http_api_config: <_>::default(),
             websocket_listen_addr: None,
             eth_spec_instance,
@@ -369,7 +367,6 @@ where
         Client {
             beacon_chain: self.beacon_chain,
             network_globals: self.network_globals,
-            http_listen_addr: self.http_listen_addr,
             http_api_listen_addr,
             websocket_listen_addr: self.websocket_listen_addr,
         }

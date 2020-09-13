@@ -3445,10 +3445,10 @@ version = "0.2.0"
 dependencies = [
  "beacon_node",
  "environment",
+ "eth2",
  "eth2_config",
  "futures 0.3.5",
  "genesis",
- "remote_beacon_node",
  "reqwest",
  "serde",
  "tempdir",
