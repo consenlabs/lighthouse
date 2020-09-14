@@ -131,6 +131,7 @@ impl<E: EthSpec> ProductionBeaconNode<E> {
                 .await?
                 .notifier()?
                 .http_api_config(client_config.http_api.clone())
+                .http_metrics_config(client_config.http_metrics.clone())
                 .build(),
         ))
     }

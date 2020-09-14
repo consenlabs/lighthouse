@@ -25,6 +25,8 @@ pub struct Client<T: BeaconChainTypes> {
     network_globals: Option<Arc<NetworkGlobals<T::EthSpec>>>,
     /// Listen address for the standard eth2.0 API, if the service was started.
     http_api_listen_addr: Option<SocketAddr>,
+    /// Listen address for the HTTP server which serves Prometheus metrics.
+    http_metrics_listen_addr: Option<SocketAddr>,
     websocket_listen_addr: Option<SocketAddr>,
 }
 
@@ -37,6 +39,11 @@ impl<T: BeaconChainTypes> Client<T> {
     /// Returns the address of the client's standard eth2.0 API server, if it was started.
     pub fn http_api_listen_addr(&self) -> Option<SocketAddr> {
         self.http_api_listen_addr
+    }
+
+    /// Returns the address of the client's HTTP Prometheus metrics server, if it was started.
+    pub fn http_metrics_listen_addr(&self) -> Option<SocketAddr> {
+        self.http_metrics_listen_addr
     }
 
     /// Returns the address of the client's WebSocket API server, if it was started.

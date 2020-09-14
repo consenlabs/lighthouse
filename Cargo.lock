@@ -773,6 +773,7 @@ dependencies = [
  "futures 0.3.5",
  "genesis",
  "http_api",
+ "http_metrics",
  "lazy_static",
  "lighthouse_metrics",
  "network",
@@ -2335,6 +2336,28 @@ dependencies = [
  "hex 0.4.2",
  "serde",
  "types",
+]
+
+[[package]]
+name = "http_metrics"
+version = "0.1.0"
+dependencies = [
+ "beacon_chain",
+ "environment",
+ "eth2_libp2p",
+ "lazy_static",
+ "lighthouse_metrics",
+ "procinfo",
+ "prometheus",
+ "psutil",
+ "reqwest",
+ "serde",
+ "slog",
+ "slot_clock",
+ "store",
+ "tokio 0.2.22",
+ "types",
+ "warp",
 ]
 
 [[package]]

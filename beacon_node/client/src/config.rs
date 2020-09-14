@@ -67,6 +67,7 @@ pub struct Config {
     pub websocket_server: websocket_server::Config,
     pub eth1: eth1::Config,
     pub http_api: http_api::Config,
+    pub http_metrics: http_metrics::Config,
 }
 
 impl Default for Config {
@@ -88,6 +89,7 @@ impl Default for Config {
             disabled_forks: Vec::new(),
             graffiti: Graffiti::default(),
             http_api: <_>::default(),
+            http_metrics: <_>::default(),
         }
     }
 }

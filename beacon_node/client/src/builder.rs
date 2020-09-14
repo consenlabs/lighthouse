@@ -17,10 +17,10 @@ use eth2_libp2p::NetworkGlobals;
 use genesis::{interop_genesis_state, Eth1GenesisService};
 use network::{NetworkConfig, NetworkMessage, NetworkService};
 use parking_lot::Mutex;
-use slog::info;
+use slog::{debug, info};
 use ssz::Decode;
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use timer::spawn_timer;
@@ -60,7 +60,10 @@ pub struct ClientBuilder<T: BeaconChainTypes> {
     event_handler: Option<T::EventHandler>,
     network_globals: Option<Arc<NetworkGlobals<T::EthSpec>>>,
     network_send: Option<UnboundedSender<NetworkMessage<T::EthSpec>>>,
+    db_path: Option<PathBuf>,
+    freezer_db_path: Option<PathBuf>,
     http_api_config: http_api::Config,
+    http_metrics_config: http_metrics::Config,
     websocket_listen_addr: Option<SocketAddr>,
     eth_spec_instance: T::EthSpec,
 }
@@ -102,7 +105,10 @@ where
             event_handler: None,
             network_globals: None,
             network_send: None,
+            db_path: None,
+            freezer_db_path: None,
             http_api_config: <_>::default(),
+            http_metrics_config: <_>::default(),
             websocket_listen_addr: None,
             eth_spec_instance,
         }
@@ -285,6 +291,12 @@ where
         self
     }
 
+    /// Provides configuration for the HTTP server that serves Prometheus metrics.
+    pub fn http_metrics_config(mut self, config: http_metrics::Config) -> Self {
+        self.http_metrics_config = config;
+        self
+    }
+
     /// Immediately starts the service that periodically logs information each slot.
     pub fn notifier(self) -> Result<Self, String> {
         let context = self
@@ -354,6 +366,7 @@ where
                 .unwrap(); // TODO
 
             self.runtime_context
+                .clone()
                 .unwrap()
                 .executor
                 .spawn_without_exit(async move { server.await }, "http-api");
@@ -364,10 +377,38 @@ where
             None
         };
 
+        let http_metrics_listen_addr = if self.http_metrics_config.enabled {
+            let ctx = Arc::new(http_metrics::Context {
+                config: self.http_metrics_config.clone(),
+                chain: self.beacon_chain.clone(),
+                db_path: self.db_path.clone(),
+                freezer_db_path: self.freezer_db_path.clone(),
+                log: log.clone(),
+            });
+
+            // TODO
+            let exit = self.runtime_context.as_ref().unwrap().executor.exit();
+
+            let (listen_addr, server) = http_metrics::serve(ctx, exit)
+                .map_err(|e| format!("Unable to start HTTP API server: {:?}", e))
+                .unwrap(); // TODO
+
+            self.runtime_context
+                .unwrap()
+                .executor
+                .spawn_without_exit(async move { server.await }, "http-api");
+
+            Some(listen_addr)
+        } else {
+            debug!(log, "Metrics server is disabled");
+            None
+        };
+
         Client {
             beacon_chain: self.beacon_chain,
             network_globals: self.network_globals,
             http_api_listen_addr,
+            http_metrics_listen_addr,
             websocket_listen_addr: self.websocket_listen_addr,
         }
     }
@@ -503,6 +544,9 @@ where
             .chain_spec
             .clone()
             .ok_or_else(|| "disk_store requires a chain spec".to_string())?;
+
+        self.db_path = Some(hot_path.into());
+        self.freezer_db_path = Some(cold_path.into());
 
         let store = HotColdDB::open(hot_path, cold_path, config, spec, context.log().clone())
             .map_err(|e| format!("Unable to open database: {:?}", e))?;

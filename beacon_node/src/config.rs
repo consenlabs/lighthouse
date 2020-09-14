@@ -84,7 +84,7 @@ pub fn get_config<E: EthSpec>(
     )?;
 
     /*
-     * Http server
+     * Http API server
      */
 
     if cli_args.is_present("http") {
@@ -110,6 +110,35 @@ pub fn get_config<E: EthSpec>(
             .map_err(|_| "Invalid allow-origin value")?;
 
         client_config.http_api.allow_origin = Some(allow_origin.to_string());
+    }
+
+    /*
+     * Prometheus metrics HTTP server
+     */
+
+    if cli_args.is_present("metrics") {
+        client_config.http_metrics.enabled = true;
+    }
+
+    if let Some(address) = cli_args.value_of("metrics-address") {
+        client_config.http_metrics.listen_addr = address
+            .parse::<Ipv4Addr>()
+            .map_err(|_| "metrics-address is not a valid IPv4 address.")?;
+    }
+
+    if let Some(port) = cli_args.value_of("metrics-port") {
+        client_config.http_metrics.listen_port = port
+            .parse::<u16>()
+            .map_err(|_| "metrics-port is not a valid u16.")?;
+    }
+
+    if let Some(allow_origin) = cli_args.value_of("metrics-allow-origin") {
+        // Pre-validate the config value to give feedback to the user on node startup, instead of
+        // as late as when the first API response is produced.
+        hyper::header::HeaderValue::from_str(allow_origin)
+            .map_err(|_| "Invalid allow-origin value")?;
+
+        client_config.http_metrics.allow_origin = Some(allow_origin.to_string());
     }
 
     /*

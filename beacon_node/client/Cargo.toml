@@ -41,3 +41,4 @@ lighthouse_metrics = { path = "../../common/lighthouse_metrics" }
 time = "0.2.16"
 bus = "2.2.3"
 http_api = { path = "../http_api" }
+http_metrics = { path = "../http_metrics" }
