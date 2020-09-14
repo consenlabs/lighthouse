@@ -85,7 +85,7 @@ pub fn slog_logging(
     warp::log::custom(move |info| {
         match info.status() {
             status if status == StatusCode::OK || status == StatusCode::NOT_FOUND => {
-                debug!(
+                trace!(
                     log,
                     "Processed HTTP API request";
                     "elapsed" => format!("{:?}", info.elapsed()),
