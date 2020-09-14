@@ -8,13 +8,16 @@ use beacon_chain::{
 };
 use beacon_proposer_cache::BeaconProposerCache;
 use block_id::BlockId;
-use eth2::types::{self as api_types, ValidatorId};
+use eth2::{
+    types::{self as api_types, ValidatorId},
+    StatusCode,
+};
 use eth2_libp2p::{NetworkGlobals, PubsubMessage};
 use lighthouse_version::version_with_platform;
 use network::NetworkMessage;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use slog::{crit, error, info, Logger};
+use slog::{crit, debug, error, info, warn, Logger};
 use state_id::StateId;
 use std::borrow::Cow;
 use std::convert::TryInto;
@@ -74,6 +77,35 @@ impl From<String> for Error {
     fn from(e: String) -> Self {
         Error::Other(e)
     }
+}
+
+pub fn slog_logging(
+    log: Logger,
+) -> warp::filters::log::Log<impl Fn(warp::filters::log::Info) + Clone> {
+    warp::log::custom(move |info| {
+        match info.status() {
+            status if status == StatusCode::OK || status == StatusCode::NOT_FOUND => {
+                debug!(
+                    log,
+                    "Processed HTTP API request";
+                    "elapsed" => format!("{:?}", info.elapsed()),
+                    "status" => status.to_string(),
+                    "path" => info.path(),
+                    "method" => info.method().to_string(),
+                );
+            }
+            status => {
+                warn!(
+                    log,
+                    "Error processing HTTP API request";
+                    "elapsed" => format!("{:?}", info.elapsed()),
+                    "status" => status.to_string(),
+                    "path" => info.path(),
+                    "method" => info.method().to_string(),
+                );
+            }
+        };
+    })
 }
 
 pub fn serve<T: BeaconChainTypes>(
@@ -1234,7 +1266,6 @@ pub fn serve<T: BeaconChainTypes>(
                 .or(get_validator_attestation_data)
                 .or(get_validator_aggregate_attestation),
         )
-        .boxed()
         .or(warp::post().and(
             post_beacon_blocks
                 .or(post_beacon_pool_attestations)
@@ -1244,7 +1275,9 @@ pub fn serve<T: BeaconChainTypes>(
                 .or(post_validator_aggregate_and_proofs)
                 .or(post_validator_beacon_committee_subscriptions),
         ))
-        .recover(crate::reject::handle_rejection);
+        .boxed()
+        .recover(crate::reject::handle_rejection)
+        .with(slog_logging(log.clone()));
 
     let (listening_socket, server) = warp::serve(routes).try_bind_with_graceful_shutdown(
         SocketAddrV4::new(config.listen_addr, config.listen_port),

@@ -130,7 +130,7 @@ impl<T: EthSpec> ProductionValidatorClient<T> {
 
         if context.eth2_config.spec != beacon_node_spec {
             return Err(
-                "The beacon node is using a different spec version to this validator client. \
+                "The beacon node is using a different Eth2 specification to this validator client. \
                 See the --testnet command."
                     .to_string(),
             );
