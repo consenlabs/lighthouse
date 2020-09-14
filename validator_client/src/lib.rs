@@ -123,7 +123,7 @@ impl<T: EthSpec> ProductionValidatorClient<T> {
             () = context.executor.exit() => return Err("Shutting down".to_string())
         };
         let beacon_node_spec = yaml_config.apply_to_chain_spec::<T>(&T::default_spec())
-            .ok_or_else(|| 
+            .ok_or_else(||
                     "The minimal/mainnet spec type of the beacon node does not match the validator client. \
                     See the --testnet command.".to_string()
             )?;
