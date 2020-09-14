@@ -1224,23 +1224,27 @@ pub fn serve<T: BeaconChainTypes>(
         .and(warp::body::json())
         .and(network_tx_filter)
         .and_then(
-            |subscription: api_types::BeaconCommitteeSubscription,
+            |subscriptions: Vec<api_types::BeaconCommitteeSubscription>,
              network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
                 blocking_json_task(move || {
-                    let subscription = api_types::ValidatorSubscription {
-                        validator_index: subscription.validator_index,
-                        attestation_committee_index: subscription.committee_index,
-                        slot: subscription.slot,
-                        committee_count_at_slot: subscription.committees_at_slot,
-                        is_aggregator: subscription.is_aggregator,
-                    };
+                    for subscription in &subscriptions {
+                        let subscription = api_types::ValidatorSubscription {
+                            validator_index: subscription.validator_index,
+                            attestation_committee_index: subscription.committee_index,
+                            slot: subscription.slot,
+                            committee_count_at_slot: subscription.committees_at_slot,
+                            is_aggregator: subscription.is_aggregator,
+                        };
 
-                    publish_network_message(
-                        &network_tx,
-                        NetworkMessage::Subscribe {
-                            subscriptions: vec![subscription],
-                        },
-                    )
+                        publish_network_message(
+                            &network_tx,
+                            NetworkMessage::Subscribe {
+                                subscriptions: vec![subscription],
+                            },
+                        )?;
+                    }
+
+                    Ok(())
                 })
             },
         );
