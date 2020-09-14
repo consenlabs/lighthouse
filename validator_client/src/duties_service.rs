@@ -45,10 +45,9 @@ impl DutyAndProof {
         validator_store: &ValidatorStore<T, E>,
         spec: &ChainSpec,
     ) -> Result<(), String> {
-        let (committee_count_at_slot, slot) = if let (Some(count), Some(slot)) = (
-            self.duty.committee_count_at_slot,
-            self.duty.attestation_slot,
-        ) {
+        let (committee_length, slot) = if let (Some(count), Some(slot)) =
+            (self.duty.committee_length, self.duty.attestation_slot)
+        {
             (count as usize, slot)
         } else {
             // If there are no attester duties we assume the validator is inactive.
@@ -61,7 +60,7 @@ impl DutyAndProof {
             .ok_or_else(|| "Failed to produce selection proof".to_string())?;
 
         self.selection_proof = selection_proof
-            .is_aggregator(committee_count_at_slot, spec)
+            .is_aggregator(committee_length, spec)
             .map_err(|e| format!("Invalid modulo: {:?}", e))
             .map(|is_aggregator| {
                 if is_aggregator {
