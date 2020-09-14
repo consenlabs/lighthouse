@@ -141,6 +141,7 @@ impl ApiTester {
                 enabled: true,
                 listen_addr: Ipv4Addr::new(127, 0, 0, 1),
                 listen_port: 0,
+                allow_origin: None,
             },
             chain: Some(chain.clone()),
             network_tx: Some(network_tx),
@@ -1412,7 +1413,7 @@ impl ApiTester {
         };
 
         self.client
-            .post_validator_beacon_committee_subscriptions(&subscription)
+            .post_validator_beacon_committee_subscriptions(&[subscription])
             .await
             .unwrap();
 
