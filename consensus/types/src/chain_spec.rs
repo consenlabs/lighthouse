@@ -677,6 +677,7 @@ impl YamlConfig {
             boot_nodes: chain_spec.boot_nodes.clone(),
             genesis_fork_version: self.genesis_fork_version,
             eth1_follow_distance: self.eth1_follow_distance,
+            seconds_per_eth1_block: self.seconds_per_eth1_block,
             deposit_contract_address: self.deposit_contract_address,
             ..*chain_spec
         })
