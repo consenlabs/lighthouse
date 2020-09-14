@@ -74,7 +74,7 @@ impl<E: EthSpec> LocalBeaconNode<E> {
             .build()
             .map_err(|e| format!("Unable to build HTTP client: {:?}", e))?;
         BeaconNodeClient::from_components(beacon_node_url, beacon_node_http_client)
-            .map_err(|_| format!("Beacon node URL is invalid"))
+            .map_err(|_| "Beacon node URL is invalid".to_string())
     }
 }
 

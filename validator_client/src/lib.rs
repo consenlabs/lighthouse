@@ -115,7 +115,7 @@ impl<T: EthSpec> ProductionValidatorClient<T> {
             .map_err(|e| format!("Unable to build HTTP client: {:?}", e))?;
         let beacon_node =
             BeaconNodeClient::from_components(beacon_node_url, beacon_node_http_client)
-                .map_err(|_| format!("Beacon node URL is invalid"))?;
+                .map_err(|_| "Beacon node URL is invalid".to_string())?;
 
         // Perform some potentially long-running initialization tasks.
         let (yaml_config, genesis_time, genesis_validators_root) = tokio::select! {
@@ -123,10 +123,10 @@ impl<T: EthSpec> ProductionValidatorClient<T> {
             () = context.executor.exit() => return Err("Shutting down".to_string())
         };
         let beacon_node_spec = yaml_config.apply_to_chain_spec::<T>(&T::default_spec())
-            .ok_or_else(|| format!(
+            .ok_or_else(|| 
                     "The minimal/mainnet spec type of the beacon node does not match the validator client. \
-                    See the --testnet command."
-            ))?;
+                    See the --testnet command.".to_string()
+            )?;
 
         if context.eth2_config.spec != beacon_node_spec {
             return Err(

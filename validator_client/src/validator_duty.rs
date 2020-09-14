@@ -47,7 +47,8 @@ impl ValidatorDuty {
 
     pub async fn download(
         beacon_node: &BeaconNodeClient,
-        epoch: Epoch,
+        current_epoch: Epoch,
+        request_epoch: Epoch,
         pubkey: PublicKey,
     ) -> Result<ValidatorDuty, String> {
         let pubkey_bytes = PublicKeyBytes::from(&pubkey);
@@ -55,7 +56,7 @@ impl ValidatorDuty {
         let validator_index = if let Some(index) = beacon_node
             .get_beacon_states_validator_id(
                 StateId::Head,
-                &ValidatorId::PublicKey(PublicKeyBytes::from(pubkey_bytes.clone())),
+                &ValidatorId::PublicKey(pubkey_bytes.clone()),
             )
             .await
             .map_err(|e| format!("Failed to get validator index: {}", e))?
@@ -67,21 +68,25 @@ impl ValidatorDuty {
         };
 
         if let Some(attester) = beacon_node
-            .get_validator_duties_attester(epoch, Some(&[validator_index]))
+            .get_validator_duties_attester(request_epoch, Some(&[validator_index]))
             .await
             .map_err(|e| format!("Failed to get attester duties: {}", e))?
             .data
             .first()
         {
-            let block_proposal_slots = beacon_node
-                .get_validator_duties_proposer(epoch)
-                .await
-                .map_err(|e| format!("Failed to get proposer indices: {}", e))?
-                .data
-                .into_iter()
-                .filter(|data| data.pubkey == pubkey_bytes)
-                .map(|data| data.slot)
-                .collect();
+            let block_proposal_slots = if current_epoch == request_epoch {
+                beacon_node
+                    .get_validator_duties_proposer(current_epoch)
+                    .await
+                    .map_err(|e| format!("Failed to get proposer indices: {}", e))?
+                    .data
+                    .into_iter()
+                    .filter(|data| data.pubkey == pubkey_bytes)
+                    .map(|data| data.slot)
+                    .collect()
+            } else {
+                vec![]
+            };
 
             Ok(ValidatorDuty {
                 validator_pubkey: pubkey,

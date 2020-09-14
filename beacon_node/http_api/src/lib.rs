@@ -4,7 +4,8 @@ mod reject;
 mod state_id;
 
 use beacon_chain::{
-    observed_operations::ObservationOutcome, BeaconChain, BeaconChainError, BeaconChainTypes,
+    observed_operations::ObservationOutcome, AttestationError as AttnError, BeaconChain,
+    BeaconChainError, BeaconChainTypes,
 };
 use beacon_proposer_cache::BeaconProposerCache;
 use block_id::BlockId;
@@ -17,7 +18,7 @@ use lighthouse_version::version_with_platform;
 use network::NetworkMessage;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use slog::{crit, debug, error, info, warn, Logger};
+use slog::{crit, error, info, trace, warn, Logger};
 use state_id::StateId;
 use std::borrow::Cow;
 use std::convert::TryInto;
@@ -958,7 +959,7 @@ pub fn serve<T: BeaconChainTypes>(
         .and_then(|| {
             blocking_json_task(move || {
                 Ok(api_types::GenericResponse::from(api_types::VersionData {
-                    version: version_with_platform().to_string(),
+                    version: version_with_platform(),
                 }))
             })
         });
@@ -1169,14 +1170,23 @@ pub fn serve<T: BeaconChainTypes>(
              aggregate: SignedAggregateAndProof<T::EthSpec>,
              network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {
                 blocking_json_task(move || {
-                    let aggregate = chain
-                        .verify_aggregated_attestation_for_gossip(aggregate.clone())
-                        .map_err(|e| {
-                            crate::reject::object_invalid(format!(
-                                "gossip verification failed: {:?}",
-                                e
-                            ))
-                        })?;
+                    let aggregate =
+                        match chain.verify_aggregated_attestation_for_gossip(aggregate.clone()) {
+                            Ok(aggregate) => aggregate,
+                            // If we already know the attestation, don't broadcast it or attempt to
+                            // further verify it. Return success.
+                            //
+                            // It's reasonably likely that two different validators produce
+                            // identical aggregates, especially if they're using the same beacon
+                            // node.
+                            Err(AttnError::AttestationAlreadyKnown(_)) => return Ok(()),
+                            Err(e) => {
+                                return Err(crate::reject::object_invalid(format!(
+                                    "gossip verification failed: {:?}",
+                                    e
+                                )))
+                            }
+                        };
 
                     publish_pubsub_message(
                         &network_tx,
@@ -1212,7 +1222,7 @@ pub fn serve<T: BeaconChainTypes>(
         .and(warp::path("beacon_committee_subscriptions"))
         .and(warp::path::end())
         .and(warp::body::json())
-        .and(network_tx_filter.clone())
+        .and(network_tx_filter)
         .and_then(
             |subscription: api_types::BeaconCommitteeSubscription,
              network_tx: UnboundedSender<NetworkMessage<T::EthSpec>>| {

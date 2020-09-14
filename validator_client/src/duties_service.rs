@@ -531,7 +531,11 @@ impl<T: SlotClock + 'static, E: EthSpec> DutiesService<T, E> {
 
         // Update duties for the current epoch, but keep running if there's an error:
         // block production or the next epoch update could still succeed.
-        if let Err(e) = self.clone().update_epoch(current_epoch, spec).await {
+        if let Err(e) = self
+            .clone()
+            .update_epoch(current_epoch, current_epoch, spec)
+            .await
+        {
             error!(
                 log,
                 "Failed to get current epoch duties";
@@ -555,7 +559,11 @@ impl<T: SlotClock + 'static, E: EthSpec> DutiesService<T, E> {
         };
 
         // Update duties for the next epoch.
-        if let Err(e) = self.clone().update_epoch(current_epoch + 1, spec).await {
+        if let Err(e) = self
+            .clone()
+            .update_epoch(current_epoch, current_epoch + 1, spec)
+            .await
+        {
             error!(
                 log,
                 "Failed to get next epoch duties";
@@ -565,7 +573,12 @@ impl<T: SlotClock + 'static, E: EthSpec> DutiesService<T, E> {
     }
 
     /// Attempt to download the duties of all managed validators for the given `epoch`.
-    async fn update_epoch(self, epoch: Epoch, spec: &ChainSpec) -> Result<(), String> {
+    async fn update_epoch(
+        self,
+        current_epoch: Epoch,
+        request_epoch: Epoch,
+        spec: &ChainSpec,
+    ) -> Result<(), String> {
         let log = self.context.log();
 
         let mut new_validator = 0;
@@ -577,7 +590,9 @@ impl<T: SlotClock + 'static, E: EthSpec> DutiesService<T, E> {
 
         let mut validator_subscriptions = vec![];
         for pubkey in self.validator_store.voting_pubkeys() {
-            let remote_duties = ValidatorDuty::download(&self.beacon_node, epoch, pubkey).await?;
+            let remote_duties =
+                ValidatorDuty::download(&self.beacon_node, current_epoch, request_epoch, pubkey)
+                    .await?;
             // Convert the remote duties into our local representation.
             let duties: DutyAndProof = remote_duties.clone().into();
 
@@ -585,7 +600,7 @@ impl<T: SlotClock + 'static, E: EthSpec> DutiesService<T, E> {
 
             // Attempt to update our local store.
             match self.store.insert(
-                epoch,
+                request_epoch,
                 duties,
                 E::slots_per_epoch(),
                 &self.validator_store,
@@ -610,7 +625,8 @@ impl<T: SlotClock + 'static, E: EthSpec> DutiesService<T, E> {
                         InsertOutcome::Invalid => invalid += 1,
                     }
 
-                    if let Some(is_aggregator) = self.store.is_aggregator(&validator_pubkey, epoch)
+                    if let Some(is_aggregator) =
+                        self.store.is_aggregator(&validator_pubkey, request_epoch)
                     {
                         if outcome.is_subscription_candidate() {
                             if let Some(subscription) = remote_duties.subscription(is_aggregator) {
@@ -644,7 +660,7 @@ impl<T: SlotClock + 'static, E: EthSpec> DutiesService<T, E> {
             "new_proposal_slots" => new_proposal_slots,
             "new_validator" => new_validator,
             "replaced" => replaced,
-            "epoch" => format!("{}", epoch)
+            "epoch" => format!("{}", request_epoch)
         );
 
         if replaced > 0 {

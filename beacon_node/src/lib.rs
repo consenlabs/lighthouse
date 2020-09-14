@@ -71,7 +71,6 @@ impl<E: EthSpec> ProductionBeaconNode<E> {
         context: RuntimeContext<E>,
         mut client_config: ClientConfig,
     ) -> Result<Self, String> {
-        let http_eth2_config = context.eth2_config().clone();
         let spec = context.eth2_config().spec.clone();
         let client_config_1 = client_config.clone();
         let client_genesis = client_config.genesis.clone();
@@ -118,7 +117,7 @@ impl<E: EthSpec> ProductionBeaconNode<E> {
             builder.no_eth1_backend()?
         };
 
-        let (builder, events) = builder
+        let (builder, _events) = builder
             .system_time_slot_clock()?
             .tee_event_handler(client_config.websocket_server.clone())?;
 

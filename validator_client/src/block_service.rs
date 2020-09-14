@@ -231,8 +231,7 @@ impl<T: SlotClock + 'static, E: EthSpec> BlockService<T, E> {
             .sign_block(&validator_pubkey, block, current_slot)
             .ok_or_else(|| "Unable to sign block".to_string())?;
 
-        let publish_status = self
-            .beacon_node
+        self.beacon_node
             .post_beacon_blocks(&signed_block)
             .await
             .map_err(|e| format!("Error from beacon node when publishing block: {:?}", e))?;

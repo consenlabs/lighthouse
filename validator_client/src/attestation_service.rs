@@ -336,7 +336,7 @@ impl<T: SlotClock + 'static, E: EthSpec> AttestationService<T, E> {
                 duty_committee_index,
                 validator_committee_position,
                 _,
-                committee_count_at_slot,
+                _,
                 committee_length,
             ) = if let Some(tuple) = duty.attestation_duties() {
                 tuple
