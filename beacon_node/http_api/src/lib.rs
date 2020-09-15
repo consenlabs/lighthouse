@@ -1,5 +1,6 @@
 mod beacon_proposer_cache;
 mod block_id;
+mod metrics;
 mod reject;
 mod state_id;
 
@@ -106,6 +107,60 @@ pub fn slog_logging(
                 );
             }
         };
+    })
+}
+
+pub fn prometheus_metrics() -> warp::filters::log::Log<impl Fn(warp::filters::log::Info) + Clone> {
+    warp::log::custom(move |info| {
+        // Here we restrict the `info.path()` value to some predefined values. Without this, we end
+        // up with a new metric type each time someone includes something unique in the path (e.g.,
+        // a block hash).
+        let path = {
+            let equals = |s: &'static str| -> Option<&'static str> {
+                if info.path() == &format!("{}/{}/{}", API_PREFIX, API_VERSION, s) {
+                    Some(s)
+                } else {
+                    None
+                }
+            };
+
+            let starts_with = |s: &'static str| -> Option<&'static str> {
+                if info
+                    .path()
+                    .starts_with(&format!("{}/{}/{}", API_PREFIX, API_VERSION, s))
+                {
+                    Some(s)
+                } else {
+                    None
+                }
+            };
+
+            equals("beacon/blocks")
+                .or(starts_with("validator/duties/attester"))
+                .or(starts_with("validator/duties/proposer"))
+                .or(starts_with("validator/attestation_data"))
+                .or(starts_with("validator/aggregate_attestation"))
+                .or(starts_with("validator/aggregate_and_proofs"))
+                .or(starts_with("validator/beacon_committee_subscriptions"))
+                .or(starts_with("beacon/"))
+                .or(starts_with("config/"))
+                .or(starts_with("debug/"))
+                .or(starts_with("events/"))
+                .or(starts_with("node/"))
+                .or(starts_with("validator/"))
+                .unwrap_or("other")
+        };
+
+        metrics::inc_counter_vec(&metrics::HTTP_API_PATHS_TOTAL, &[path]);
+        metrics::inc_counter_vec(
+            &metrics::HTTP_API_STATUS_CODES_TOTAL,
+            &[&info.status().to_string()],
+        );
+        metrics::observe_timer_vec(
+            &metrics::HTTP_API_PATHS_TIMES_TOTAL,
+            &[info.path()],
+            info.elapsed(),
+        );
     })
 }
 
@@ -1291,7 +1346,8 @@ pub fn serve<T: BeaconChainTypes>(
         ))
         .boxed()
         .recover(crate::reject::handle_rejection)
-        .with(slog_logging(log.clone()));
+        .with(slog_logging(log.clone()))
+        .with(prometheus_metrics());
 
     let (listening_socket, server) = warp::serve(routes).try_bind_with_graceful_shutdown(
         SocketAddrV4::new(config.listen_addr, config.listen_port),
