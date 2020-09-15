@@ -139,6 +139,7 @@ pub fn prometheus_metrics() -> warp::filters::log::Log<impl Fn(warp::filters::lo
                 .or(starts_with("validator/duties/attester"))
                 .or(starts_with("validator/duties/proposer"))
                 .or(starts_with("validator/attestation_data"))
+                .or(starts_with("validator/blocks"))
                 .or(starts_with("validator/aggregate_attestation"))
                 .or(starts_with("validator/aggregate_and_proofs"))
                 .or(starts_with("validator/beacon_committee_subscriptions"))
