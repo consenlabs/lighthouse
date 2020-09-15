@@ -117,7 +117,7 @@ pub fn prometheus_metrics() -> warp::filters::log::Log<impl Fn(warp::filters::lo
         // a block hash).
         let path = {
             let equals = |s: &'static str| -> Option<&'static str> {
-                if info.path() == &format!("/{}/{}/{}", API_PREFIX, API_VERSION, s) {
+                if info.path() == format!("/{}/{}/{}", API_PREFIX, API_VERSION, s) {
                     Some(s)
                 } else {
                     None
@@ -136,19 +136,19 @@ pub fn prometheus_metrics() -> warp::filters::log::Log<impl Fn(warp::filters::lo
             };
 
             equals("beacon/blocks")
-                .or(starts_with("validator/duties/attester"))
-                .or(starts_with("validator/duties/proposer"))
-                .or(starts_with("validator/attestation_data"))
-                .or(starts_with("validator/blocks"))
-                .or(starts_with("validator/aggregate_attestation"))
-                .or(starts_with("validator/aggregate_and_proofs"))
-                .or(starts_with("validator/beacon_committee_subscriptions"))
-                .or(starts_with("beacon/"))
-                .or(starts_with("config/"))
-                .or(starts_with("debug/"))
-                .or(starts_with("events/"))
-                .or(starts_with("node/"))
-                .or(starts_with("validator/"))
+                .or_else(|| starts_with("validator/duties/attester"))
+                .or_else(|| starts_with("validator/duties/proposer"))
+                .or_else(|| starts_with("validator/attestation_data"))
+                .or_else(|| starts_with("validator/blocks"))
+                .or_else(|| starts_with("validator/aggregate_attestation"))
+                .or_else(|| starts_with("validator/aggregate_and_proofs"))
+                .or_else(|| starts_with("validator/beacon_committee_subscriptions"))
+                .or_else(|| starts_with("beacon/"))
+                .or_else(|| starts_with("config/"))
+                .or_else(|| starts_with("debug/"))
+                .or_else(|| starts_with("events/"))
+                .or_else(|| starts_with("node/"))
+                .or_else(|| starts_with("validator/"))
                 .unwrap_or("other")
         };
 
@@ -157,11 +157,7 @@ pub fn prometheus_metrics() -> warp::filters::log::Log<impl Fn(warp::filters::lo
             &metrics::HTTP_API_STATUS_CODES_TOTAL,
             &[&info.status().to_string()],
         );
-        metrics::observe_timer_vec(
-            &metrics::HTTP_API_PATHS_TIMES_TOTAL,
-            &[path],
-            info.elapsed(),
-        );
+        metrics::observe_timer_vec(&metrics::HTTP_API_PATHS_TIMES, &[path], info.elapsed());
     })
 }
 
