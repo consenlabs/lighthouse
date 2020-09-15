@@ -117,7 +117,7 @@ pub fn prometheus_metrics() -> warp::filters::log::Log<impl Fn(warp::filters::lo
         // a block hash).
         let path = {
             let equals = |s: &'static str| -> Option<&'static str> {
-                if info.path() == &format!("{}/{}/{}", API_PREFIX, API_VERSION, s) {
+                if info.path() == &format!("/{}/{}/{}", API_PREFIX, API_VERSION, s) {
                     Some(s)
                 } else {
                     None
@@ -127,7 +127,7 @@ pub fn prometheus_metrics() -> warp::filters::log::Log<impl Fn(warp::filters::lo
             let starts_with = |s: &'static str| -> Option<&'static str> {
                 if info
                     .path()
-                    .starts_with(&format!("{}/{}/{}", API_PREFIX, API_VERSION, s))
+                    .starts_with(&format!("/{}/{}/{}", API_PREFIX, API_VERSION, s))
                 {
                     Some(s)
                 } else {
@@ -158,7 +158,7 @@ pub fn prometheus_metrics() -> warp::filters::log::Log<impl Fn(warp::filters::lo
         );
         metrics::observe_timer_vec(
             &metrics::HTTP_API_PATHS_TIMES_TOTAL,
-            &[info.path()],
+            &[path],
             info.elapsed(),
         );
     })
