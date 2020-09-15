@@ -1,3 +1,4 @@
+use crate::metrics;
 use beacon_chain::{BeaconChain, BeaconChainError, BeaconChainTypes};
 use eth2::types::ProposerData;
 use fork_choice::ProtoBlock;
@@ -37,6 +38,8 @@ impl BeaconProposerCache {
         head_root: Hash256,
         head_block: ProtoBlock,
     ) -> Result<Self, BeaconChainError> {
+        let _timer = metrics::start_timer(&metrics::HTTP_API_BEACON_PROPOSER_CACHE_TIMES);
+
         let mut head_state = chain
             .get_state(&head_block.state_root, Some(head_block.slot))?
             .ok_or_else(|| BeaconChainError::MissingBeaconState(head_block.state_root))?;
@@ -103,8 +106,12 @@ impl BeaconProposerCache {
         let epoch_boundary_root = head_block.target_root;
 
         if self.epoch != current_epoch || self.epoch_boundary_root != epoch_boundary_root {
+            metrics::inc_counter(&metrics::HTTP_API_BEACON_PROPOSER_CACHE_MISSES_TOTAL);
+
             *self = Self::for_head_block(chain, current_epoch, head_root, head_block)
                 .map_err(crate::reject::beacon_chain_error)?;
+        } else {
+            metrics::inc_counter(&metrics::HTTP_API_BEACON_PROPOSER_CACHE_HITS_TOTAL);
         }
 
         Ok(self.proposers.clone())
